@@ -30,9 +30,9 @@ def extract_all_from_warc(warc_path: str, output_file: str = "data/warc_extracti
                 if text and len(text.strip()) > 50:
                     results.append({"url": url, "text": text})
 
-    with open(output_file, "w") as f:
+    with open(output_file, "w", encoding="utf-8") as f:
         for item in results:
-            f.write(json.dumps(item) + "\n")
+            f.write(json.dumps(item, ensure_ascii=False) + "\n")
 
     print(f"Extracted {len(results)} documents to {output_file}")
     return results
