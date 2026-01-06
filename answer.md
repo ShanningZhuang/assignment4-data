@@ -112,4 +112,4 @@ First "high-quality" example: Record #2 (LinuxFocus article about BORG graphics)
 
 **Deliverable:** A 2-5 sentence response.
 
-**Answer:**
+**Answer:** Out of 26,671 documents, 7,514 contained detected emails, 7,126 contained detected phone numbers, and 214 contained detected IPs. **False positives observed:** (1) Phone regex matched Facebook group IDs like `21361278617`, (2) Italian tax/company IDs like `11630700018` (C.F./P.IVA numbers) were incorrectly flagged as phone numbers, (3) Version/section numbers like `3.2.1.4` were matched as IP addresses. **False negatives likely include:** international phone formats (e.g., `+49 123 456 7890`), emails with newer TLDs (e.g., `.museum`, `.photography`), and phone numbers with country codes or extensions. The phone number regex is particularly prone to false positives since many numeric sequences happen to match the 10-digit pattern.

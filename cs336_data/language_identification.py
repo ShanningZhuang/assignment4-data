@@ -33,45 +33,64 @@ def identify_language(text: str) -> tuple[str, float]:
     return lang_code, float(score)
 
 
-def analyze_warc_languages(warc_path: str, num_samples: int = 20, seed: int = 42):
-    """Analyze language distribution in a WARC file."""
-    import gzip
+def analyze_languages(jsonl_path: str, output_dir: str = "data", num_samples: int = 20, seed: int = 42):
+    """Analyze language distribution from extracted WARC documents."""
+    import json
     import random
-    from fastwarc.warc import ArchiveIterator, WarcRecordType
-    from cs336_data.extract_text import extract_text_from_html_bytes
+    from pathlib import Path
+    from collections import Counter
 
-    # Extract text and identify language
+    output_path = Path(output_dir)
+
+    # Load extractions
+    with open(jsonl_path, "r", encoding="utf-8") as f:
+        docs = [json.loads(line) for line in f]
+
+    # Identify language for each document
     results = []
-    with gzip.open(warc_path, "rb") as f:
-        for record in ArchiveIterator(f, record_types=WarcRecordType.response):
-            url = record.headers.get("WARC-Target-URI")
-            if url and record.http_content_type and "text/html" in record.http_content_type:
-                html_bytes = record.reader.read()
-                text = extract_text_from_html_bytes(html_bytes)
-                if text and len(text.strip()) > 50:  # Skip empty/tiny pages
-                    lang, score = identify_language(text)
-                    results.append((url, lang, score, text[:200]))
+    for doc in docs:
+        text = doc["text"]
+        url = doc["url"]
+        lang, score = identify_language(text)
+        results.append({
+            "url": url,
+            "language": lang,
+            "score": float(score),
+            "text": text,
+        })
 
     # Statistics
     total = len(results)
-    english_count = sum(1 for _, lang, _, _ in results if lang == "en")
+    lang_counts = Counter(r["language"] for r in results)
+    english_count = lang_counts.get("en", 0)
+    
     print(f"Total documents: {total}")
     print(f"English documents: {english_count} ({english_count/total*100:.1f}%)")
-    print()
+    print(f"\nTop 10 languages:")
+    for lang, count in lang_counts.most_common(10):
+        print(f"  {lang}: {count} ({count/total*100:.1f}%)")
+
+    # Save all results to JSONL
+    output_file = output_path / "language_ids.jsonl"
+    with open(output_file, "w", encoding="utf-8") as f:
+        for item in results:
+            f.write(json.dumps(item, ensure_ascii=False) + "\n")
+    print(f"\nSaved language identification results to {output_file}")
 
     # Random sample
     random.seed(seed)
     sample = random.sample(results, min(num_samples, total))
 
-    print(f"Random sample of {len(sample)} documents:")
+    print(f"\nRandom sample of {len(sample)} documents:")
     print("=" * 80)
-    for i, (url, lang, score, text_preview) in enumerate(sample, 1):
-        domain = url.split("/")[2] if "/" in url else url
-        print(f"{i}. [{lang}] score={score:.3f} | {domain}")
-        print(f"   Preview: {text_preview[:100].replace(chr(10), ' ')}...")
+    for i, item in enumerate(sample, 1):
+        domain = item["url"].split("/")[2] if "/" in item["url"] else item["url"]
+        preview = item["text"][:100].replace("\n", " ")
+        print(f"{i}. [{item['language']}] score={item['score']:.3f} | {domain}")
+        print(f"   Preview: {preview}...")
         print()
 
 
 if __name__ == "__main__":
-    analyze_warc_languages("data/CC-MAIN-20250417135010-20250417165010-00065.warc.gz")
+    analyze_languages("data/warc_extractions.jsonl")
 
