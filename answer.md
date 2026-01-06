@@ -113,3 +113,47 @@ First "high-quality" example: Record #2 (LinuxFocus article about BORG graphics)
 **Deliverable:** A 2-5 sentence response.
 
 **Answer:** Out of 26,671 documents, 7,514 contained detected emails, 7,126 contained detected phone numbers, and 214 contained detected IPs. **False positives observed:** (1) Phone regex matched Facebook group IDs like `21361278617`, (2) Italian tax/company IDs like `11630700018` (C.F./P.IVA numbers) were incorrectly flagged as phone numbers, (3) Version/section numbers like `3.2.1.4` were matched as IP addresses. **False negatives likely include:** international phone formats (e.g., `+49 123 456 7890`), emails with newer TLDs (e.g., `.museum`, `.photography`), and phone numbers with country codes or extensions. The phone number regex is particularly prone to false positives since many numeric sequences happen to match the 10-digit pattern.
+
+## Problem (harmful_content): 6 points
+
+**(a)** Write a function to detect NSFW content.
+
+**Deliverable:** A function that labels a given string as containing NSFW content or not, returning a pair containing both the label and a confidence score. Implement the adapter `[run_classify_nsfw]` and make sure it passes `uv run pytest -k test_classify_nsfw`. Note that this test is just a sanity check, taken from the Jigsaw dataset, but by no means asserts that your classifier is accurate, which you should validate.
+
+**(b)** Write a function to detect toxic speech.
+
+**Deliverable:** A function that labels a given string as consisting of toxic speech or not, returning a pair containing both the label and a confidence score. Implement the adapter `[run_classify_toxic_speech]` and make sure it passes `uv run pytest -k test_classify_toxic_speech`. Again, this test is just a sanity check, also taken from Jigsaw.
+
+**(c)** What problems do you think might arise downstream in a language model when these filters are applied to create the training set? How might you mitigate these issues?
+
+**Deliverable:** A 2-5 sentence response.
+
+**Answer:** Aggressive harmful content filtering can systematically remove legitimate content, leading to several downstream issues: (1) non-English languages may be disproportionately filtered due to classifier bias toward English training data, reducing multilingual capabilities; (2) discussions about sensitive topics (e.g., sexual health education, hate speech research, legal cases involving violence) may be removed, limiting the model's ability to handle these topics appropriately; (3) over-filtering can create "holes" in the model's knowledge. Mitigations include using language-specific classifiers, setting conservative thresholds with human review for borderline cases, maintaining separate classifiers for different content types, and ensuring diverse annotator pools during classifier training.
+
+**(d)** Run your harmful content filters on text extracted from the WARC files (via your previously-implemented text extraction function). Look through 20 random examples and compare the classifier predictions to your own judgments. Report any classifier errors. What fraction of documents are harmful? Based on your observations, what would be suitable classifier confidence threshold(s) to use in filtering?
+
+**Deliverable:** A 2-5 sentence response.
+
+**Answer:** Of 11,390 documents, 0.1% were classified as NSFW and 0.5% as toxic (0.5% total harmful). In my review of 20 harmful-classified examples, I found a ~57% false positive rate among high-confidence toxic predictions: legitimate sites like `eggplant-egg.com` (Japanese vintage store, score=0.991), `kmz-sbk.de` (German education center, score=0.973), and `www.q8car.com` (Kuwaiti car marketplace, NSFW score=0.88) were incorrectly flagged, while true positives included `teen-gay-boys.com`, `porntv.top`, and `xxxdownload.buzz`. The classifiers exhibit strong non-English bias—German, Russian, Arabic, and Japanese content frequently triggers false positives. A threshold of **0.95+ for NSFW** and **0.99+ for toxic** would be more appropriate, combined with language filtering to only apply these English-trained classifiers to English documents.
+
+## Problem (gopher_quality_filters): 3 points
+
+**(a)** Implement (at least) the subset of the Gopher quality filters as described above. For tokenizing text into words, you might find the NLTK package useful (specifically nltk.word_tokenize), though you're not required to use it.
+
+**Deliverable:** A function that takes a string as its only argument and returns a boolean indicating whether the text passes the Gopher quality filters. Implement the adapter `[run_gopher_quality_filter]`. Then, make sure your filters pass the tests in `uv run pytest -k test_gopher`.
+
+**(b)** Run your rule-based quality filter on text extracted from the WARC files (via your previously-implemented text extraction function). Look through 20 random examples and compare the filter predictions to your own judgment. Comment on any cases where the quality filters differ from your judgments.
+
+**Deliverable:** A 2-5 sentence response.
+
+**Answer:** Of 11,390 documents, 53.6% passed the Gopher quality filters and 46.4% failed. In my review of 20 random examples, most filter decisions were reasonable: documents failed primarily due to low alphabetic word ratio (<80%) caused by excessive product codes, prices, and phone numbers (e.g., `bagleyliquor.com` at 65.3%, `myapo-shop.de` at 59.0%), or too few words (<50) for short navigation-heavy pages. However, I disagree with some rejections: `leewasson.com` (French jewelry site) was rejected at 79.9% alphabetic ratio—just barely below the 80% threshold—despite containing reasonable prose, and Chinese/Japanese sites like `m.0591dxb.com` were rejected for mean word length >10 because CJK text tokenization by whitespace produces long "words." The filters work well for English content but are overly aggressive on non-English text and e-commerce pages with many numeric values.
+
+## Problem (quality_classifier): 15 points
+
+**(a)** Train a quality classifier that, given text, returns a numeric quality score.
+
+**Deliverable:** A quality classifier for use in the next subproblem.
+
+**(b)** Write a function that labels a page as high or low-quality, and provides a confidence score in the label.
+
+**Deliverable:** A function taking a string as its only argument, and returning a pair with a label (high-quality or not) and a confidence score. Implement the adapter `[run_classify_quality]`. As a sanity check, make sure it correctly classifies the two examples we provide by running `uv run pytest -k test_classify_quality`.
